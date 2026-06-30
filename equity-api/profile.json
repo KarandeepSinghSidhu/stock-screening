@@ -1,0 +1,10 @@
+{
+  "name": "Karan",
+  "sectors": [
+    "energy",
+    "industrials"
+  ],
+  "risk_appetite": "balanced",
+  "default_horizon": "long",
+  "onboarded": true
+}

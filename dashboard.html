@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Investing Assistant</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --surface-2: #f2f1ee;
+    --border: rgba(0,0,0,0.09); --border-strong: rgba(0,0,0,0.15);
+    --text: #0b0b0b; --text-2: #52514e; --text-3: #898781;
+    --accent: #2a78d6; --green: #27500A; --green-bg: #EAF3DE;
+    --red: #791F1F; --red-bg: #FCEBEB; --amber: #633806; --amber-bg: #FAEEDA;
+    --radius: 10px; --font: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --surface: #1e1e1c; --surface-2: #262624;
+      --border: rgba(255,255,255,0.09); --border-strong: rgba(255,255,255,0.15);
+      --text: #f0efe9; --text-2: #b8b7b0; --text-3: #737270;
+      --green-bg: #0f2205; --green: #7dc45a; --red-bg: #220a0a; --red: #e87a7a;
+      --amber-bg: #261500; --amber: #e5a84a;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; min-height: 100vh; }
+
+  .topbar { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 54px; position: sticky; top: 0; z-index: 100; }
+  .brand { font-size: 14px; font-weight: 600; }
+  .brand span { color: var(--text-3); font-weight: 400; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #0ca30c; display: inline-block; margin-right: 5px; }
+  .status-dot.err { background: #d03b3b; }
+  .status-txt { font-size: 12px; color: var(--text-3); }
+
+  .main { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+  /* Onboarding */
+  .onboard-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 16px; padding: 2rem; }
+  .onboard-card h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .onboard-card p.sub { color: var(--text-3); font-size: 14px; margin-bottom: 1.75rem; }
+  .field-group { margin-bottom: 1.5rem; }
+  .field-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: block; }
+  .field-hint { font-size: 12px; color: var(--text-3); margin-bottom: 10px; }
+  .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2); font-size: 13px; cursor: pointer; transition: all .15s; user-select: none; }
+  .chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip:hover:not(.selected) { background: var(--surface-2); }
+  input[type=text] { width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 14px; font-family: var(--font); outline: none; }
+  input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(42,120,214,0.12); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 20px; border-radius: var(--radius); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 14px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: background .12s; }
+  .btn:hover { background: var(--surface-2); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; justify-content: center; }
+  .btn.primary:hover { background: #1e69c7; }
+  .btn.secondary { background: transparent; border-color: transparent; color: var(--text-3); font-weight: 500; font-size: 13px; height: auto; padding: 4px 8px; }
+
+  /* Dashboard view */
+  .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+  .dash-header h1 { font-size: 19px; font-weight: 600; }
+  .dash-header p { font-size: 13px; color: var(--text-3); margin-top: 2px; }
+  .pref-summary { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .pref-pill { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: var(--surface-2); color: var(--text-2); border: 0.5px solid var(--border); }
+
+  .control-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
+  .control-row select { padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 13px; font-family: var(--font); }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .kpi { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .kpi-label { font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+  .kpi-val { font-size: 21px; font-weight: 600; }
+
+  .panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1.25rem; }
+  .panel-head { padding: 10px 16px; background: var(--surface-2); border-bottom: 0.5px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: .04em; text-transform: uppercase; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  thead th { padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-3); border-bottom: 0.5px solid var(--border); }
+  th:nth-child(1) { width: 32px; } th:nth-child(2) { width: 64px; } th:nth-child(3) { min-width: 110px; }
+  tbody tr { border-bottom: 0.5px solid var(--border); cursor: pointer; transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover, tbody tr.active { background: var(--surface-2); }
+  td { padding: 10px 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t-ticker { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge-buy { background: var(--green-bg); color: var(--green); }
+  .badge-hold { background: var(--amber-bg); color: var(--amber); }
+  .badge-under { background: var(--red-bg); color: var(--red); }
+  .score-bar { width: 100%; height: 4px; background: var(--surface-2); border-radius: 2px; margin-top: 3px; }
+  .score-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+  .pdf-card { background: linear-gradient(135deg, rgba(42,120,214,0.08), rgba(42,120,214,0.02)); border: 1px solid rgba(42,120,214,0.25); border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .pdf-card-text h3 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .pdf-card-text p { font-size: 12.5px; color: var(--text-3); }
+
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-3); font-size: 13px; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .65s linear infinite; margin-right: 5px; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .disclaimer { font-size: 11px; color: var(--text-3); text-align: center; padding: 1.5rem 0 .5rem; }
+  .edit-link { font-size: 12px; color: var(--accent); cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Your Investing Assistant <span>/ powered by Claude</span></div>
+  <div class="status-txt"><span class="status-dot" id="statusDot"></span><span id="statusTxt">Connecting...</span></div>
+</div>
+
+<div class="main">
+
+  <!-- ONBOARDING VIEW -->
+  <div id="onboardView" style="display:none">
+    <div class="onboard-card">
+      <h1 id="onboardTitle">Let's set up your investing profile</h1>
+      <p class="sub">This takes 30 seconds and helps us tailor every report to you. You can change this anytime.</p>
+
+      <div class="field-group">
+        <label class="field-label">Your name</label>
+        <input type="text" id="nameInput" placeholder="e.g. Karan"/>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Which sectors interest you?</label>
+        <p class="field-hint">Pick as many as you like</p>
+        <div class="chip-grid" id="sectorChips"></div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">What's your risk style?</label>
+        <p class="field-hint">This is your default — you can override it per report</p>
+        <div class="chip-grid" id="riskChips"></div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Default investing horizon</label>
+        <p class="field-hint">You can also switch this anytime when generating a report</p>
+        <div class="chip-grid" id="horizonChips"></div>
+      </div>
+
+      <button class="btn primary" id="saveProfileBtn" onclick="saveProfile()">Save and continue</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="dashView" style="display:none">
+    <div class="dash-header">
+      <div>
+        <h1 id="welcomeMsg">Welcome back</h1>
+        <p>Your personalized weekly research, generated on demand</p>
+      </div>
+      <span class="edit-link" onclick="showOnboarding(true)">Edit preferences</span>
+    </div>
+
+    <div class="pref-summary" id="prefSummary"></div>
+
+    <div class="control-row">
+      <select id="horizonSelect">
+        <option value="long">Long-term (years)</option>
+        <option value="short">Short-term (weeks-months)</option>
+      </select>
+      <select id="riskSelect">
+        <option value="conservative">Conservative</option>
+        <option value="balanced">Balanced</option>
+        <option value="aggressive">Aggressive</option>
+      </select>
+      <button class="btn" onclick="runScreener()" id="screenBtn">Generate report</button>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Screened</div><div class="kpi-val" id="kpiTotal">—</div></div>
+      <div class="kpi"><div class="kpi-label">Top picks</div><div class="kpi-val" id="kpiPicks">—</div></div>
+      <div class="kpi"><div class="kpi-label">Avg score</div><div class="kpi-val" id="kpiScore">—</div></div>
+      <div class="kpi"><div class="kpi-label">Buy signals</div><div class="kpi-val" id="kpiBuy" style="color:var(--green)">—</div></div>
+    </div>
+
+    <div class="pdf-card">
+      <div class="pdf-card-text">
+        <h3>Get your full PDF report</h3>
+        <p>Plain-English breakdown with winners, losers, and what the news means for your picks</p>
+      </div>
+      <button class="btn primary" style="width:auto" onclick="downloadPdf()" id="pdfBtn">Download PDF</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">Ranked results</div>
+      <table>
+        <thead><tr><th>#</th><th>Ticker</th><th>Company</th><th>Sector</th><th>Score</th><th>Growth</th><th>Take</th></tr></thead>
+        <tbody id="tableBody"><tr><td colspan="7" class="empty-state">Hit "Generate report" to begin</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="disclaimer">Live data via yfinance · Claude AI analysis · Not financial advice · Educational purposes only</div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let profile = null;
+let stocks = [];
+let selectedSectors = new Set();
+let selectedRisk = 'balanced';
+let selectedHorizon = 'long';
+
+const SECTORS = [
+  {id:'tech', label:'Technology & AI'},
+  {id:'health', label:'Healthcare'},
+  {id:'energy', label:'Energy'},
+  {id:'finance', label:'Finance'},
+  {id:'consumer', label:'Consumer'},
+  {id:'industrials', label:'Industrials'},
+];
+const RISKS = [
+  {id:'conservative', label:'Conservative'},
+  {id:'balanced', label:'Balanced'},
+  {id:'aggressive', label:'Aggressive'},
+];
+const HORIZONS = [
+  {id:'long', label:'Long-term (years)'},
+  {id:'short', label:'Short-term (weeks-months)'},
+];
+
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health');
+    if (r.ok) {
+      document.getElementById('statusDot').className = 'status-dot';
+      document.getElementById('statusTxt').textContent = 'API connected';
+      return true;
+    }
+  } catch {}
+  document.getElementById('statusDot').className = 'status-dot err';
+  document.getElementById('statusTxt').textContent = 'API offline — start your server';
+  return false;
+}
+
+function renderChips(container, items, selectedSet, onToggle) {
+  const el = document.getElementById(container);
+  el.innerHTML = items.map(it => `<div class="chip ${selectedSet.has(it.id)?'selected':''}" data-id="${it.id}">${it.label}</div>`).join('');
+  el.querySelectorAll('.chip').forEach(chip => {
+    chip.onclick = () => onToggle(chip.dataset.id, chip);
+  });
+}
+
+function renderSingleSelectChips(container, items, currentVal, onSelect) {
+  const el = document.getElementById(container);
+  el.innerHTML = items.map(it => `<div class="chip ${it.id===currentVal?'selected':''}" data-id="${it.id}">${it.label}</div>`).join('');
+  el.querySelectorAll('.chip').forEach(chip => {
+    chip.onclick = () => {
+      el.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      onSelect(chip.dataset.id);
+    };
+  });
+}
+
+async function init() {
+  const healthy = await checkHealth();
+  if (!healthy) {
+    document.getElementById('onboardView').style.display = 'block';
+    document.getElementById('onboardTitle').textContent = "Can't connect to your API";
+  }
+  try {
+    const r = await fetch(API + '/api/profile');
+    profile = await r.json();
+  } catch {
+    profile = {onboarded:false, sectors:['tech','health'], risk_appetite:'balanced', default_horizon:'long', name:''};
+  }
+  if (profile.onboarded) {
+    showDashboard();
+  } else {
+    showOnboarding(false);
+  }
+}
+
+function showOnboarding(prefill) {
+  document.getElementById('dashView').style.display = 'none';
+  document.getElementById('onboardView').style.display = 'block';
+  document.getElementById('onboardTitle').textContent = prefill ? 'Edit your preferences' : "Let's set up your investing profile";
+
+  selectedSectors = new Set(prefill ? profile.sectors : ['tech','health']);
+  selectedRisk = prefill ? profile.risk_appetite : 'balanced';
+  selectedHorizon = prefill ? profile.default_horizon : 'long';
+  document.getElementById('nameInput').value = prefill ? (profile.name||'') : '';
+
+  renderChips('sectorChips', SECTORS, selectedSectors, (id, chip) => {
+    if (selectedSectors.has(id)) { selectedSectors.delete(id); chip.classList.remove('selected'); }
+    else { selectedSectors.add(id); chip.classList.add('selected'); }
+  });
+  renderSingleSelectChips('riskChips', RISKS, selectedRisk, (id) => selectedRisk = id);
+  renderSingleSelectChips('horizonChips', HORIZONS, selectedHorizon, (id) => selectedHorizon = id);
+}
+
+async function saveProfile() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (selectedSectors.size === 0) { alert('Pick at least one sector'); return; }
+  const btn = document.getElementById('saveProfileBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Saving...';
+  try {
+    const r = await fetch(API + '/api/profile', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name, sectors: Array.from(selectedSectors),
+        risk_appetite: selectedRisk, default_horizon: selectedHorizon
+      })
+    });
+    profile = await r.json();
+    showDashboard();
+  } catch(e) {
+    alert('Could not save profile — check your API connection.');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Save and continue';
+}
+
+function showDashboard() {
+  document.getElementById('onboardView').style.display = 'none';
+  document.getElementById('dashView').style.display = 'block';
+  document.getElementById('welcomeMsg').textContent = profile.name ? `Welcome back, ${profile.name}` : 'Welcome back';
+
+  const sectorLabels = profile.sectors.map(s => SECTORS.find(x=>x.id===s)?.label || s);
+  document.getElementById('prefSummary').innerHTML = sectorLabels.map(l => `<span class="pref-pill">${l}</span>`).join('') +
+    `<span class="pref-pill">${RISKS.find(r=>r.id===profile.risk_appetite)?.label}</span>`;
+
+  document.getElementById('horizonSelect').value = profile.default_horizon;
+  document.getElementById('riskSelect').value = profile.risk_appetite;
+}
+
+function currentQuery() {
+  const sectors = profile.sectors.join(',');
+  const horizon = document.getElementById('horizonSelect').value;
+  const risk = document.getElementById('riskSelect').value;
+  return `sectors=${encodeURIComponent(sectors)}&horizon=${horizon}&risk_appetite=${risk}`;
+}
+
+async function runScreener() {
+  const btn = document.getElementById('screenBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Screening...';
+  document.getElementById('statusTxt').textContent = 'Fetching live data — this takes ~30-60s...';
+  try {
+    const r = await fetch(`${API}/api/screener/run?${currentQuery()}&top_n=10`);
+    const data = await r.json();
+    stocks = data.stocks || [];
+    document.getElementById('kpiTotal').textContent = data.universe_screened;
+    document.getElementById('kpiPicks').textContent = data.results_returned;
+    document.getElementById('kpiScore').textContent = (data.avg_composite_score||0).toFixed(1);
+    document.getElementById('kpiBuy').textContent = data.buy_signals;
+    document.getElementById('statusTxt').textContent = `Last run ${new Date().toLocaleTimeString()}`;
+    renderTable();
+  } catch(e) {
+    document.getElementById('statusTxt').textContent = 'Screener error — check API';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Generate report';
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  if (!stocks.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No results yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = stocks.map((s,i) => {
+    const score = s.composite_score || 0;
+    const eg = s.growth?.eps_growth_fwd_pct;
+    const ratingCls = s.rating==='Buy'?'badge-buy':s.rating==='Hold'?'badge-hold':'badge-under';
+    return `<tr>
+      <td style="color:var(--text-3);font-size:11px">${i+1}</td>
+      <td class="t-ticker">${s.ticker}</td>
+      <td style="overflow:hidden;text-overflow:ellipsis">${s.name||''}</td>
+      <td style="font-size:11px;color:var(--text-3)">${s.sector||'—'}</td>
+      <td><span style="font-size:13px;font-weight:600">${score}</span><div class="score-bar"><div class="score-fill" style="width:${score}%"></div></div></td>
+      <td style="color:${eg>30?'var(--green)':eg!=null&&eg<0?'var(--red)':'var(--text)'}">${eg!=null?(eg>0?'+':'')+eg.toFixed(1)+'%':'—'}</td>
+      <td><span class="badge ${ratingCls}">${s.rating||'Hold'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+async function downloadPdf() {
+  const btn = document.getElementById('pdfBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Generating PDF...';
+  document.getElementById('statusTxt').textContent = 'Building your report — this can take 1-2 minutes...';
+  try {
+    const url = `${API}/api/report/weekly/pdf?${currentQuery()}&top_n=6`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    document.getElementById('statusTxt').textContent = 'Report downloading...';
+  } catch(e) {
+    document.getElementById('statusTxt').textContent = 'PDF generation failed';
+  }
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Download PDF'; }, 2000);
+}
+
+init();
+</script>
+</body>
+</html>
